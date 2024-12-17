@@ -17,6 +17,8 @@ https://github.com/Warthunder-Open-Source-Foundation
 Without their efforts, I would have had to attempt to reverse engineer Gaijins source code over at https://github.com/GaijinEntertainment/DagorEngine
 , which does not sound like a fun time, so thank you to them for their hard work
 
+I also want to thank my friend xCykz who helped me brainstorm
+
 # Notes
 if you are looking for a blk / VROMFs unpacker, this is not the place to be. While this project can do so, it will 
 not have overhead for cli builtin. This project is more suited to be integrated into projects for VROMFs and blk support.
