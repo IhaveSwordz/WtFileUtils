@@ -1,7 +1,7 @@
 # from BlkTypes import BlkTypes
 from typing import Union
 
-from src.blk.ParamParser import BLKTypes
+from WtFileUtils.blk.ParamParser import BLKTypes
 import dataclasses
 
 

@@ -1,13 +1,16 @@
-from src.FileSystem.FSDirectory import FSDirectory
-from src.FileSystem.File import _BaseFile
-from src.Exceptions import FileSystemException
+from WtFileUtils.FileSystem.FSDirectory import FSDirectory
+from WtFileUtils.FileSystem.File import _BaseFile
+from WtFileUtils.Exceptions import FileSystemException
 class FileSystem:
     """
     A FileSystem holds directories.
     A FileSystem does not hold any actual files
+    not implemented rn, dont feel like implementing
+
     """
 
     def __init__(self):
+        raise NotImplemented
         self.main_directory = FSDirectory("base")
 
     def add_objects(self, directory: FSDirectory):

@@ -1,11 +1,17 @@
 # WtFileUtils
 A module with a set of file utils for extracting and viewing various warthunder file file types
 
+for people finding this on PyPi (and on github aswell I guess) this is very much still a wip, not all planned files 
+exist nor are some of them built for module-like use  
 
+# Usage
 
+BLKs:
+the blk unpacking class is blk/BlkParser.py/BlkDecoder, as long you pass the blk bin data, the it should work.
+current it only supports extraction to JSON like data (a python_dict) using the .to_dict() method
 
-
-
+vromfs:
+the unpacking class is WtFileUtils/vromfs/VROMFs.py/VROMFs, pass
 
 
 

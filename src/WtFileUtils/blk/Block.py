@@ -1,4 +1,4 @@
-from src.blk.Chunk import Chunk
+from ..blk.Chunk import Chunk
 
 
 class Block:

@@ -1,4 +1,4 @@
-from src.Exceptions import VROMFSException
+from WtFileUtils.Exceptions import VROMFSException
 
 
 PlatformType = {

@@ -1,14 +1,14 @@
 import os
 import traceback
+import re
 
-from src.FileSystem.File import _BaseFile
-from src.Exceptions import FileSystemException
-from src.FileSystem.FileSystemQuery import FileSystemQuery
+from WtFileUtils.FileSystem.File import _BaseFile
+from WtFileUtils.Exceptions import FileSystemException
+from WtFileUtils.FileSystem.FileSystemQuery import FileSystemQuery, MassFileSystemQuery
 
 
 # noinspection PyTypeChecker
-# TODO: implement a recursive backtrace to help display full fs error path in applicable errors
-class _FSDirectory:
+class FSDirectory:
     """
     one of the classes apart from a file system.
     name: the name of the directory
@@ -38,7 +38,7 @@ class _FSDirectory:
             directory = self._directories.get(name)
             if type_ == 1:
                 if directory is None:
-                    new_dir = _FSDirectory(name, self)
+                    new_dir = FSDirectory(name, self)
                     self._directories.update({name: new_dir})
                     new_dir.add_file(file)
                 else:
@@ -59,13 +59,13 @@ class _FSDirectory:
                 raise FileSystemException("Tried to create a file that already exists")
 
     #TODO: add support for regex and directory lookup.
-    def search_file(self, file: FileSystemQuery, suppress_errors = False):
+    def search_for_file(self, file: FileSystemQuery, suppress_errors = False) -> _BaseFile:
         """
         :param file: a FileSystemQuery object. this class only uses FIleSystemQuery Objects to search for a file
         :param suppress_errors: used to supress any
         :return: the found file, and only if supress_errors is True, sometimes a None
         """
-        if not isinstance(file, FileSystemQuery): # error suppression wont ever apply to this
+        if not isinstance(file, FileSystemQuery):# error suppression wont ever apply to this
             raise FileSystemException("Passed an invalid argument to search_file")
         type_, name = file.get_next()
         if type_ == 1:
@@ -74,7 +74,7 @@ class _FSDirectory:
                 raise FileSystemException(f"search_file was asked to search an invalid directory with name {name} in {self.name}")
             elif directory is None:
                 return None
-            return directory.search_file(file)
+            return directory.search_for_file(file)
         elif type_ == 2:
             out = self._files.get(name)
             if out is None and not suppress_errors:
@@ -83,8 +83,52 @@ class _FSDirectory:
                 return None
             return out
 
-    # def add_directory(self, directory: FSDirectory):
-    #     pass
+    def search_for_files(self, query: MassFileSystemQuery, suppress_errors = False) -> list[tuple[list,_BaseFile]]:
+        """
+
+        :param query:
+        :param suppress_errors:
+        :return:
+        """
+        # if not isinstance(query, MassFileSystemQuery):# error suppression wont ever apply to this
+        #     raise FileSystemException("Passed an invalid argument to search_for_files")
+
+        file_names = []
+        stack_trace = self.stack_trace()
+        files = []
+        for directory in self._directories.values():
+            files.extend(directory.search_for_files(query, suppress_errors))
+        if query.file_exclude != [None]:
+            for name in self._files:
+                do = True
+                for exclusion in query.file_exclude:
+                    if isinstance(exclusion, str):
+                        if exclusion in name:
+                            do = False
+                            break
+                    if isinstance(exclusion, re.Pattern):
+                        if exclusion.match(name) is not None:
+                            do = False
+                            break
+                if do:
+                    file_names.append(name)
+        else:
+            file_names = self._files.keys()
+
+        if query.file_include != [None]:
+            for name in file_names:
+                for inclusion in query.file_include:
+                    if isinstance(inclusion, str):
+                        if inclusion in name:
+                            files.append((stack_trace+[name], self._files.get(name)))
+                    if isinstance(inclusion, re.Pattern):
+                        if inclusion.match(name) is not None:
+                            files.append((stack_trace+[name], self._files.get(name)))
+        else:
+            for name in file_names:
+                files.append((stack_trace+[name], self._files.get(name)))
+
+        return files
 
     def dump(self, spacing=0):
         for f in self._files.values():
@@ -93,12 +137,25 @@ class _FSDirectory:
             print(" "*spacing, d.name + ":")
             d.dump(spacing+2)
 
-    def dump_file(self, base_dir):
+
+    def dump_files(self, base_dir, skip=False):
+        '''
+        this dumps all the files to the specified directory (base_dir)
+        makes directories as needed
+
+        :param base_dir: the literal directory to dump files to, as in a path in your OS filesystem
+        :param skip: if you want to skip files already created or throw an exception
+        :return: None
+        '''
         for f in self._files.values():
+            if skip:
+                if os.path.exists(base_dir + "/" + f.file_name):
+                    continue
             with open(base_dir + "/" + f.file_name, "x") as x:
                 pass
             with open(base_dir + "/" + f.file_name, "wb") as x:
                 try:
+                    print(f"writing {'/'.join(f.true_name)} to disk")
                     x.write(f.get_data_disk())
                 except Exception as e:
                     stack_trace = traceback.format_exc()
@@ -112,7 +169,7 @@ class _FSDirectory:
                 os.mkdir(os.path.join(base_dir, d.name))
             except Exception as e:
                 pass
-            d.dump_file(os.path.join(base_dir, d.name))
+            d.dump_files(os.path.join(base_dir, d.name), skip=skip)
 
     def stack_trace(self):
         if self.parent is None:
@@ -121,94 +178,3 @@ class _FSDirectory:
             v = self.parent.stack_trace()
             v.append(self.name)
             return v
-
-
-
-
-
-class FSDirectory:
-    def __init__(self, name):
-        self.name = name
-        self._files: list[_BaseFile] = []
-        self._directories: list[FSDirectory] = []
-
-    '''
-    Adds an object (_BaseFile or FSDirectory) to current directory
-    both this and fetch abuse custom __eq__ in File.py to allow for easier lookup
-    '''
-
-    def add_obj(self, obj):
-        if isinstance(obj, FSDirectory):
-            if obj in self._directories:
-                index = self._directories.index(obj)
-                self._directories[index].add_directory(obj._directories)
-                self._directories[index].add_file(obj._files)
-            else:
-                self._directories.append(obj)
-        elif isinstance(obj, _BaseFile):
-            if obj in self._files:
-                raise FileSystemException(f'File {obj} already exists')
-                self._files.append(file)
-        else:
-            raise FileSystemException(f'Object {obj} is not a valid directory / file')
-
-    '''
-    given _BaseFile(s), will add them to the current directory
-    can take in an input of a single _BaseFile or a list of _BaseFile objects
-    if the input contains any object that doesnt inherit BaseFile, it throws an exception
-    if the file is already in the directory or a file with the same name exists, a FileSystemException is thrown
-    
-    '''
-
-    def add_file(self, file: _BaseFile | list[_BaseFile]):
-        if not isinstance(file, list):
-            file = [file]  # converts it to a list to reduce future processing
-        for f in file:
-            if isinstance(f, _BaseFile):
-                if f not in self._files:
-                    self._files.append(f)
-                else:
-                    raise FileSystemException(f'File {f} already exists')
-
-    '''
-    given FSDirectory(s), will add them to the current directory
-    if the directory already exists, it will merge the existing and input directory
-    
-    '''
-    #                                : FSDirectory | list[FSDirectory]
-    def add_directory(self, directory):
-        if not isinstance(directory, list):
-            directory = [directory]  # converts it to a list to reduce future processing
-        for d in directory:
-            if isinstance(d, FSDirectory):
-                if d not in self._directories:
-                    self._directories.append(d)
-                else:
-                    index = self._directories.index(d)
-                    self._directories[index].add_file(d._files)
-                    self._directories[index].add_directory(d._directories)
-            else:
-                raise FileSystemException(f'Object {d} is not a valid directory')
-
-    '''
-    given a FileSystemQuery object
-    '''
-
-    def fetch(self, file: FileSystemQuery) -> _BaseFile:
-        if len(file) == 1:
-            if file[0] in self._files:
-                return self._files[self._files.index(file[0])]
-            else:
-                raise FileSystemException(f'File {file[0]} does not exist')
-        else:
-            if file[0] in self._directories:
-                return self._directories[self._directories.index(file[0])].fetch(file)
-            else:
-                raise FileSystemException(f'Directory {file[0]} does not exist')
-
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return self.name == other
-        if not isinstance(other, FSDirectory):
-            return False
-        return self.name == other.name

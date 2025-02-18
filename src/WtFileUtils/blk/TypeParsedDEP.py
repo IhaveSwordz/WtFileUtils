@@ -18,7 +18,6 @@ types = {
 '''
 this functions the exact same as ParamParser.py, but its the deprecated one mentioned in the notes.
 '''
-
 class BlkTypes:
     STRING = 0x01
     INT = 0x02
